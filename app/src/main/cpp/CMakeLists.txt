@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(lastwave_audio LANGUAGES C CXX)
+project(shelter_audio LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -42,7 +42,7 @@ if(NOT soxr_source_POPULATED)
 endif()
 
 add_library(
-    lastwave_audio
+    shelter_audio
     SHARED
     AudioEngine.cpp
     DirectOutputBridge.cpp
@@ -55,14 +55,14 @@ add_library(
 )
 
 target_include_directories(
-    lastwave_audio
+    shelter_audio
     PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${soxr_source_SOURCE_DIR}/src"
 )
 
 target_compile_options(
-    lastwave_audio
+    shelter_audio
     PRIVATE
     -Wall
     -Wextra
@@ -72,7 +72,7 @@ target_compile_options(
 )
 
 target_link_libraries(
-    lastwave_audio
+    shelter_audio
     PRIVATE
     oboe::oboe
     soxr

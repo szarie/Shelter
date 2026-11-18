@@ -12,7 +12,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lastwave.app"
+    namespace = "com.shelter.app"
     compileSdk = 37
 
     val localProps = Properties().apply {
@@ -57,16 +57,16 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.lastwave.app"
+        applicationId = "com.shelter.app"
         minSdk = (project.findProperty("minSdk") as? String)?.toIntOrNull() ?: 29
         targetSdk = 35
         versionCode = 26
         versionName = "4.3.1"
 
-        val lastWaveLyricsToken = resolveSecret("LASTWAVE_LYRICS_TOKEN")
-        val lastWaveLyricsUrl = resolveSecret("LASTWAVE_LYRICS_URL")
-        buildConfigField("String", "LASTWAVE_LYRICS_TOKEN", "\"$lastWaveLyricsToken\"")
-        buildConfigField("String", "LASTWAVE_LYRICS_URL", "\"$lastWaveLyricsUrl\"")
+        val lastWaveLyricsToken = resolveSecret("SHELTER_LYRICS_TOKEN")
+        val lastWaveLyricsUrl = resolveSecret("SHELTER_LYRICS_URL")
+        buildConfigField("String", "SHELTER_LYRICS_TOKEN", "\"$lastWaveLyricsToken\"")
+        buildConfigField("String", "SHELTER_LYRICS_URL", "\"$lastWaveLyricsUrl\"")
 
         // Native secrets (addon client lock) live strictly in native .so via
         // SecretsBridge_generated.h (tools/generate_native_secrets.py).
@@ -279,7 +279,7 @@ dependencies {
     // Pinned to the same 1.2.1 line as exoplayer/hls to avoid binary mismatch.
     implementation("androidx.media3:media3-exoplayer-dash:1.2.1")
     // MediaBrowserServiceCompat/MediaSessionCompat bridge used by Android
-    // Auto to browse the LastWave library and control the same player.
+    // Auto to browse the Shelter library and control the same player.
     implementation("androidx.media:media:1.7.0")
 
     // GPLv3 Media3-matched FFmpeg software decoder (distribution must comply).

@@ -9,16 +9,16 @@
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
 
 # JNI exports use the Kotlin class and method names verbatim.
--keep class com.lastwave.app.playback.NativeAudioEngine { *; }
+-keep class com.shelter.app.playback.NativeAudioEngine { *; }
 
 # kotlinx.serialization: keep generated serializers and Serializable models
--keepclassmembers class com.lastwave.app.** {
+-keepclassmembers class com.shelter.app.** {
     *** Companion;
 }
--keepclasseswithmembers class com.lastwave.app.** {
+-keepclasseswithmembers class com.shelter.app.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
--keep,includedescriptorclasses class com.lastwave.app.**$$serializer { *; }
+-keep,includedescriptorclasses class com.shelter.app.**$$serializer { *; }
 -keepclassmembers @kotlinx.serialization.Serializable class * {
     *** Companion;
     kotlinx.serialization.KSerializer serializer(...);
@@ -40,7 +40,7 @@
 -keep class * extends androidx.glance.appwidget.action.ActionCallback { *; }
 -keep class * extends androidx.glance.appwidget.GlanceAppWidget { *; }
 -keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver { *; }
--keep class com.lastwave.app.widget.** { *; }
+-keep class com.shelter.app.widget.** { *; }
 
 # NewPipe's YouTube extractor loads service implementations and its
 # JavaScript deobfuscation engine dynamically.

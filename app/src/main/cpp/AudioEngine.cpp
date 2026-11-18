@@ -7,7 +7,7 @@
 #include <cstring>
 #include <limits>
 
-namespace lastwave::audio {
+namespace shelter::audio {
 namespace {
 
 constexpr double kPi = 3.1415926535897932384626433832795;
@@ -847,4 +847,4 @@ void AudioEngine::buildFadeCurve(std::int32_t sampleRate) {
     }
 }
 
-}  // namespace lastwave::audio
+}  // namespace shelter::audio

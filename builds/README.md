@@ -1,9 +1,9 @@
 # Builds
 
-- **Release Artifact:** `LastWave-v4.3.1-release.apk`
+- **Release Artifact:** `Shelter-v4.3.1-release.apk`
   - Variant: `release` (`:app:assembleRelease`)
   - Optimizations: R8 code shrinking, dead-code elimination, resource shrinking (`isMinifyEnabled = true`, `isShrinkResources = true`)
-- **Debug Artifact:** `LastWave-v4.3.1-debug.apk`
+- **Debug Artifact:** `Shelter-v4.3.1-debug.apk`
   - Variant: `debug` (`:app:assembleDebug`)
   - Uncompressed full DEX with all debug symbols, no R8 shrinking
 - **Version:** `4.3.1` (versionCode `26`)

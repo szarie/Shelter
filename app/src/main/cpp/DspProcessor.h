@@ -9,7 +9,7 @@
 
 #include "ParametricEq.h"
 
-namespace lastwave::audio {
+namespace shelter::audio {
 
 class DspProcessor final {
 public:
@@ -226,4 +226,4 @@ private:
     void applyClarityTrim(std::size_t stage, float trimDb) noexcept;
 };
 
-}  // namespace lastwave::audio
+}  // namespace shelter::audio

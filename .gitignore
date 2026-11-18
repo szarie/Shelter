@@ -30,6 +30,8 @@ local.properties
 
 # Log files
 *.log
+build_log.txt
+run_log*.txt
 
 # Keystore files
 *.jks
@@ -68,18 +70,21 @@ app/src/main/cpp/SecretsBridge_generated.h
 
 
 # Addon service & credentials (never commit)
-lastwave-addon-service/
+shelter-addon-service/
 *.zip
 credentials_backup*
 
 # Isolated git worktrees (never commit their contents)
 .worktrees/
 
-# Standalone Telemetry Repository (separated to Clash-Projects/LastWave-Telemetry)
-lastwave-live/
+# Archived source snapshots (may contain stale credentials)
+reference zip/
 
-# Standalone Jam Sync Repository (separated to Clash-Projects/LastWave-Jam)
-lastwave-jam/
+# Standalone Telemetry Repository (separated to Clash-Projects/Shelter-Telemetry)
+shelter-live/
+
+# Standalone Jam Sync Repository (separated to Clash-Projects/Shelter-Jam)
+shelter-jam/
 
 # Superpowers artifacts and documentation
 docs/superpowers/

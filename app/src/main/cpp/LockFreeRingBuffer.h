@@ -7,7 +7,7 @@
 #include <cstring>
 #include <memory>
 
-namespace lastwave::audio {
+namespace shelter::audio {
 
 // Single-producer/single-consumer ring. The producer publishes samples with a
 // release store; the Oboe consumer observes them with an acquire load. Indices
@@ -86,4 +86,4 @@ private:
     alignas(64) std::atomic<std::uint64_t> readIndex_{0};
 };
 
-}  // namespace lastwave::audio
+}  // namespace shelter::audio

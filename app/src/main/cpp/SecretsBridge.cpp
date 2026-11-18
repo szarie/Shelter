@@ -1,5 +1,5 @@
 /**
- * SecretsBridge.cpp — Native secret vault for LastWave.
+ * SecretsBridge.cpp — Native secret vault for Shelter.
  *
  * Real secrets are injected at CI / build time via `SecretsBridge_generated.h`
  * (gitignored, produced by `tools/generate_native_secrets.py` from ADDON_CLIENT_SECRET).
@@ -12,7 +12,7 @@
  *   - APK signing cert gate: re-signed / patched APKs fail signature verification,
  *     and if bypassed, produce corrupted keys resulting in invalid signatures.
  *   - Anti-debugging / ptrace detection (`/proc/self/status` TracerPid).
- *   - Caller package verification (`com.lastwave.app`).
+ *   - Caller package verification (`com.shelter.app`).
  *   - Strict volatile stack scrubbing of secret buffers immediately after HMAC calculation.
  */
 
@@ -206,7 +206,7 @@ static bool isBeingDebugged() {
 }
 
 /**
- * Verifies that the caller is genuine com.lastwave.app signed by the expected certificate.
+ * Verifies that the caller is genuine com.shelter.app signed by the expected certificate.
  * Extracts the 32-byte SHA-256 certificate digest into outCertSha256.
  */
 static bool verifyCallerSignature(JNIEnv* env, jobject context, uint8_t outCertSha256[32]) {
@@ -220,9 +220,9 @@ static bool verifyCallerSignature(JNIEnv* env, jobject context, uint8_t outCertS
     auto packageName = (jstring)env->CallObjectMethod(context, getPackageName);
     if (!packageName) return false;
 
-    // Package allowlist: only com.lastwave.app may call.
+    // Package allowlist: only com.shelter.app may call.
     const char* pkgChars = env->GetStringUTFChars(packageName, nullptr);
-    bool pkgOk = pkgChars && strcmp(pkgChars, "com.lastwave.app") == 0;
+    bool pkgOk = pkgChars && strcmp(pkgChars, "com.shelter.app") == 0;
     if (pkgChars) env->ReleaseStringUTFChars(packageName, pkgChars);
     if (!pkgOk) return false;
 
@@ -233,7 +233,7 @@ static bool verifyCallerSignature(JNIEnv* env, jobject context, uint8_t outCertS
         }
     } else {
         // Fallback key for placeholder dev builds
-        static const char devFallback[] = "LASTWAVE_DEV_FALLBACK_KEY";
+        static const char devFallback[] = "SHELTER_DEV_FALLBACK_KEY";
         auto devHash = crypto::sha256(reinterpret_cast<const uint8_t*>(devFallback), sizeof(devFallback) - 1);
         std::memcpy(outCertSha256, devHash.data(), 32);
         return true;
@@ -374,7 +374,7 @@ static size_t reconstructClientSecret(
 }  // namespace
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_lastwave_app_data_lossless_NativeSecrets_nativeSignAddonRequest(
+Java_com_shelter_app_data_lossless_NativeSecrets_nativeSignAddonRequest(
     JNIEnv* env,
     jclass,
     jobject context,
