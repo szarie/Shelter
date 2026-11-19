@@ -6,4 +6,4 @@
 
 **Next-Gen YouTube Music Client with Algorithmic Smart Playlist Generator, Real-Time Synced Lyrics & Universal Last.fm Scrobbler for Android.**
 
-This repo is fork from https://github.com/Clash-Projects/LastWave-Native
+This repo is fork from https://github.com/Clash-Projects/LastWave-Native and this repo doesn't accept contributions
