@@ -1,0 +1,12 @@
+HSPLcom/shelter/app/MainActivity;->**(**)**
+HSPLcom/shelter/app/ShelterApplication;->**(**)**
+HSPLcom/shelter/app/ui/shell/**->**(**)**
+HSPLcom/shelter/app/ui/home/**->**(**)**
+HSPLcom/shelter/app/ui/settings/**->**(**)**
+HSPLcom/shelter/app/ui/player/**->**(**)**
+HSPLcom/shelter/app/ui/common/ArtworkImageKt;->**(**)**
+HSPLcom/shelter/app/ui/common/ExpressiveMotion;->**(**)**
+HSPLcom/shelter/app/playback/MusicPlayer;->**(**)**
+HSPLcom/shelter/app/playback/MusicPlaybackService;->**(**)**
+HSPLcom/shelter/app/data/artwork/ArtworkRepository;->**(**)**
+HSPLcom/shelter/app/ui/common/ExpressiveHeaderKt;->**(**)**
