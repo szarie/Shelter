@@ -101,51 +101,38 @@ class AppUpdateManager @Inject constructor(
                 )
             }
             try {
-                val request = Request.Builder()
-                    .url("https://api.github.com/repos/szarie/Shelter/releases/latest")
-                    .header("Accept", "application/vnd.github.v3+json")
-                    .header("User-Agent", "Shelter-Android")
-                    .build()
+                val releaseResult = fetchLatestRelease()
+                val tagName: String
+                val releaseUrl: String
+                val releaseNotes: String
+                var apkAssets = emptyList<ReleaseAsset>()
 
-                val response = withContext(Dispatchers.IO) {
-                    okHttpClient.newCall(request).execute()
-                }
-
-                if (!response.isSuccessful) {
-                    val code = response.code
-                    _updateInfo.update {
-                        it.copy(
-                            isChecking = false,
-                            message = if (!isSilent) "Could not check updates (HTTP $code)" else null,
-                        )
+                if (releaseResult != null) {
+                    tagName = releaseResult.optString("tag_name", "")
+                    releaseUrl = releaseResult.optString("html_url", "https://github.com/szarie/Shelter/releases")
+                    releaseNotes = releaseResult.optString("body", "")
+                    apkAssets = parseReleaseAssets(releaseResult)
+                } else {
+                    val latestTag = fetchLatestTag() ?: ""
+                    tagName = latestTag
+                    releaseUrl = if (latestTag.isBlank()) {
+                        "https://github.com/szarie/Shelter/releases"
+                    } else {
+                        "https://github.com/szarie/Shelter/releases/tag/$latestTag"
                     }
-                    return@launch
+                    releaseNotes = ""
                 }
 
-                val body = response.body?.string().orEmpty()
-                val json = JSONObject(body)
-                val tagName = json.optString("tag_name", "")
-                val releaseUrl = json.optString("html_url", "https://github.com/szarie/Shelter/releases")
-                val releaseNotes = json.optString("body", "")
-
-                val apkAssets = mutableListOf<ReleaseAsset>()
-                val assets = json.optJSONArray("assets")
-                if (assets != null) {
-                    for (i in 0 until assets.length()) {
-                        val asset = assets.optJSONObject(i) ?: continue
-                        val name = asset.optString("name", "").trim()
-                        val download = asset.optString("browser_download_url", "").trim()
-                        if (name.endsWith(".apk", ignoreCase = true) && download.isNotBlank()) {
-                            apkAssets.add(ReleaseAsset(name = name, downloadUrl = download))
-                        }
-                    }
-                }
-
-                val bestAsset = selectBestAsset(
+                var bestAsset = selectBestAsset(
                     assets = apkAssets,
                     isUncompressed = isUncompressedBuild(),
                     sdkInt = Build.VERSION.SDK_INT,
                 )
+
+                if (bestAsset == null && tagName.isNotBlank()) {
+                    bestAsset = probeTagAsset(tagName)
+                }
+
                 val downloadUrl = bestAsset?.downloadUrl ?: releaseUrl
                 val downloadFileName = bestAsset?.name
 
@@ -188,6 +175,93 @@ class AppUpdateManager @Inject constructor(
         _updateInfo.update { it.copy(isDismissed = true) }
     }
 
+    private fun apiRequest(url: String): Request = Request.Builder()
+        .url(url)
+        .header("Accept", "application/vnd.github.v3+json")
+        .header("User-Agent", "Shelter-Android")
+        .build()
+
+    private suspend fun fetchLatestRelease(): JSONObject? = withContext(Dispatchers.IO) {
+        okHttpClient.newCall(
+            apiRequest("https://api.github.com/repos/szarie/Shelter/releases/latest")
+        ).execute().use { response ->
+            if (!response.isSuccessful) null
+            else JSONObject(response.body?.string().orEmpty())
+        }
+    }
+
+    private suspend fun fetchLatestTag(): String? = withContext(Dispatchers.IO) {
+        okHttpClient.newCall(
+            apiRequest("https://api.github.com/repos/szarie/Shelter/tags?per_page=100")
+        ).execute().use { response ->
+            if (!response.isSuccessful) return@use null
+            val body = response.body?.string().orEmpty()
+            val tags = org.json.JSONArray(body)
+            val names = buildList {
+                for (i in 0 until tags.length()) {
+                    val name = tags.optJSONObject(i)?.optString("name", "")?.trim().orEmpty()
+                    if (name.isNotBlank()) add(name)
+                }
+            }
+            names.maxWithOrNull(Comparator { first, second ->
+                compareVersions(first, second)
+            })
+        }
+    }
+
+    private suspend fun probeTagAsset(tagName: String): ReleaseAsset? = withContext(Dispatchers.IO) {
+        val cleanTag = tagName.removePrefix("v").removePrefix("V")
+        val variant = when {
+            Build.VERSION.SDK_INT < 29 -> ApkVariant.ANDROID7
+            isUncompressedBuild() -> ApkVariant.UNCOMPRESSED
+            else -> ApkVariant.UNIVERSAL
+        }
+        val fileNames = when (variant) {
+            ApkVariant.ANDROID7 -> listOf(
+                "Shelter-v$cleanTag-android7.apk",
+                "Shelter-$cleanTag-android7.apk",
+            )
+            ApkVariant.UNCOMPRESSED -> listOf(
+                "Shelter-v$cleanTag-universal-uncompressed.apk",
+                "Shelter-$cleanTag-universal-uncompressed.apk",
+            )
+            ApkVariant.UNIVERSAL -> listOf(
+                "Shelter-v$cleanTag-universal.apk",
+                "Shelter-$cleanTag-universal.apk",
+            )
+        }
+
+        for (fileName in fileNames) {
+            val url = "https://github.com/szarie/Shelter/releases/download/$tagName/$fileName"
+            okHttpClient.newCall(
+                Request.Builder().url(url).head()
+                    .header("User-Agent", "Shelter-Android")
+                    .build()
+            ).execute().use { response ->
+                if (response.isSuccessful) {
+                    return@withContext ReleaseAsset(name = fileName, downloadUrl = url)
+                }
+            }
+        }
+        null
+    }
+
+    private fun parseReleaseAssets(release: JSONObject): List<ReleaseAsset> {
+        val apkAssets = mutableListOf<ReleaseAsset>()
+        val assets = release.optJSONArray("assets")
+        if (assets != null) {
+            for (i in 0 until assets.length()) {
+                val asset = assets.optJSONObject(i) ?: continue
+                val name = asset.optString("name", "").trim()
+                val download = asset.optString("browser_download_url", "").trim()
+                if (name.endsWith(".apk", ignoreCase = true) && download.isNotBlank()) {
+                    apkAssets.add(ReleaseAsset(name = name, downloadUrl = download))
+                }
+            }
+        }
+        return apkAssets
+    }
+
     fun openUpdate(context: Context) {
         val targetUrl = _updateInfo.value.downloadUrl ?: _updateInfo.value.releaseUrl.ifBlank {
             "https://github.com/szarie/Shelter/releases"
@@ -202,24 +276,28 @@ class AppUpdateManager @Inject constructor(
 
     fun isNewerVersion(remote: String, local: String): Boolean {
         if (remote.isBlank() || local.isBlank()) return false
-        val cleanRemote = remote.removePrefix("v").removePrefix("V").substringBefore("-")
-        val cleanLocal = local.removePrefix("v").removePrefix("V").substringBefore("-")
-        if (cleanRemote == cleanLocal) return false
-
-        val rParts = cleanRemote.split(".").mapNotNull { it.toIntOrNull() }
-        val cParts = cleanLocal.split(".").mapNotNull { it.toIntOrNull() }
-
-        val maxLen = maxOf(rParts.size, cParts.size)
-        for (i in 0 until maxLen) {
-            val r = rParts.getOrElse(i) { 0 }
-            val c = cParts.getOrElse(i) { 0 }
-            if (r > c) return true
-            if (r < c) return false
-        }
-        return false
+        return compareVersions(remote, local) > 0
     }
 
     companion object {
+        fun compareVersions(first: String, second: String): Int {
+            val cleanFirst = first.removePrefix("v").removePrefix("V")
+                .substringBefore("-").substringBefore("+")
+            val cleanSecond = second.removePrefix("v").removePrefix("V")
+                .substringBefore("-").substringBefore("+")
+            if (cleanFirst == cleanSecond) return 0
+
+            val fParts = cleanFirst.split(".").mapNotNull { it.toIntOrNull() }
+            val sParts = cleanSecond.split(".").mapNotNull { it.toIntOrNull() }
+            val maxLen = maxOf(fParts.size, sParts.size)
+            for (i in 0 until maxLen) {
+                val f = fParts.getOrElse(i) { 0 }
+                val s = sParts.getOrElse(i) { 0 }
+                if (f != s) return f.compareTo(s)
+            }
+            return 0
+        }
+
         fun classifyAsset(name: String): ApkVariant {
             val lower = name.lowercase()
             return when {

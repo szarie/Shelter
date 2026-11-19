@@ -4,6 +4,13 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class AppUpdateManagerTest {
+    @Test
+    fun compareVersions_handlesVPrefixSuffixAndReleaseMetadata() {
+        assertThat(AppUpdateManager.compareVersions("v4.3.2", "4.3.1")).isGreaterThan(0)
+        assertThat(AppUpdateManager.compareVersions("4.3.1", "4.3.1")).isEqualTo(0)
+        assertThat(AppUpdateManager.compareVersions("4.3.1-beta", "4.3.1")).isEqualTo(0)
+        assertThat(AppUpdateManager.compareVersions("4.3.0+", "4.3.1")).isLessThan(0)
+    }
 
     private val sampleAssets = listOf(
         ReleaseAsset(
