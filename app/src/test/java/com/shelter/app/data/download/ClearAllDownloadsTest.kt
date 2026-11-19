@@ -99,6 +99,7 @@ class ClearAllDownloadsTest {
             audioTagWriter = mockk(relaxed = true),
             okHttpClient = OkHttpClient(),
             downloadedTrackDao = dao,
+            playlistRepository = mockk(relaxed = true),
             settingsPreferences = settings,
             applicationScope = scope,
             moduleResolver = mockk(relaxed = true),
