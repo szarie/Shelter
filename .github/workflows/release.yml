@@ -110,7 +110,7 @@ jobs:
           # never ship an APK signed by the wrong key. apksigner verify only
           # proves *a* signature is valid, not whose it is — so we also pin the
           # signer certificate digest.
-          # EXPECTED_CERT_SHA256 defaults to the current release key prefix;
+          # EXPECTED_CERT_SHA256 defaults to the pinned release certificate;
           # override with the full digest via a repo secret when the key rotates.
           SDKROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
           APKSIGNER=$(find "$SDKROOT/build-tools" -maxdepth 2 -name apksigner 2>/dev/null | head -n1)
@@ -118,7 +118,7 @@ jobs:
             echo "::error::apksigner not found under $SDKROOT — refusing to publish unverified APKs"
             exit 1
           fi
-          EXPECTED_CERT_SHA256="${EXPECTED_CERT_SHA256:-ed79fe6f}"
+          EXPECTED_CERT_SHA256="${EXPECTED_CERT_SHA256:-8f6940b60fe4161425723c765e102f5573d8111900dc445949f28503b2e26b17}"
           for apk in final_apk/*.apk; do
             echo "Verifying $apk ..."
             "$APKSIGNER" verify --print-certs "$apk" > /dev/null || { echo "::error::APK failed signature verification: $apk"; exit 1; }
@@ -179,4 +179,4 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}

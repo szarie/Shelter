@@ -113,7 +113,7 @@ class AppUpdateManager @Inject constructor(
                     releaseNotes = releaseResult.optString("body", "")
                     apkAssets = parseReleaseAssets(releaseResult)
                 } else {
-                    val latestTag = fetchLatestTag() ?: ""
+                    val latestTag = fetchLatestTag() ?: fetchLatestTagFromWeb() ?: ""
                     tagName = latestTag
                     releaseUrl = if (latestTag.isBlank()) {
                         "https://github.com/szarie/Shelter/releases"
@@ -203,6 +203,28 @@ class AppUpdateManager @Inject constructor(
                     if (name.isNotBlank()) add(name)
                 }
             }
+            names.maxWithOrNull(Comparator { first, second ->
+                compareVersions(first, second)
+            })
+        }
+    }
+
+    private suspend fun fetchLatestTagFromWeb(): String? = withContext(Dispatchers.IO) {
+        okHttpClient.newCall(
+            Request.Builder()
+                .url("https://github.com/szarie/Shelter/tags")
+                .header("User-Agent", "Shelter-Android")
+                .build()
+        ).execute().use { response ->
+            if (!response.isSuccessful) return@use null
+            val html = response.body?.string().orEmpty()
+            val names = Regex("""/szarie/Shelter/(?:releases/tag|tags)/([^"/?#]+)""")
+                .findAll(html)
+                .map { it.groupValues[1] }
+                .map { java.net.URLDecoder.decode(it, "UTF-8").removePrefix("v").removePrefix("V") }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .toList()
             names.maxWithOrNull(Comparator { first, second ->
                 compareVersions(first, second)
             })

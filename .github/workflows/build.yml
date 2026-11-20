@@ -54,6 +54,7 @@ jobs:
           path: app/build/reports/tests/testDebugUnitTest
 
       - name: Build Android 10 Release APKs (compressed + raw)
+        if: github.event_name != 'pull_request'
         env:
           ADDON_CLIENT_SECRET: ${{ secrets.ADDON_CLIENT_SECRET }}
           SHELTER_LYRICS_TOKEN: ${{ secrets.SHELTER_LYRICS_TOKEN }}
@@ -69,6 +70,10 @@ jobs:
         # step is needed. A missing keystore now fails the build outright
         # instead of silently shipping a debug-signed APK.
 
+      - name: Build Pull Request Debug APK
+        if: github.event_name == 'pull_request'
+        run: ./gradlew assembleDebug --stacktrace
+
       - name: Stage Android 10 Final APKs
         id: prep_apk
         run: |
@@ -80,6 +85,11 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
           echo "Building APKs for Shelter v$VERSION"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk "final_apk/Shelter-v${VERSION}-debug.apk"
+            ls -lh final_apk/
+            exit 0
+          fi
           # Compressed release (Android 10+, R8 + ProGuard + shrinkResources)
           if [ -f "app/build/outputs/apk/release/app-release-signed.apk" ]; then
             cp app/build/outputs/apk/release/app-release-signed.apk final_apk/Shelter-v${VERSION}-release.apk
@@ -95,6 +105,7 @@ jobs:
           rm -rf app/build/outputs/apk/release/*
 
       - name: Build Android 7.0 Legacy APK (compressed)
+        if: github.event_name != 'pull_request'
         env:
           ADDON_CLIENT_SECRET: ${{ secrets.ADDON_CLIENT_SECRET }}
           SHELTER_LYRICS_TOKEN: ${{ secrets.SHELTER_LYRICS_TOKEN }}
