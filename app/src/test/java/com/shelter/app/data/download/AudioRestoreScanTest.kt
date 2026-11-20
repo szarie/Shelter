@@ -130,7 +130,7 @@ class AudioRestoreScanTest {
 
     @Test
     fun restoreDownloads_withPermission_setsScannedFlagAndDoesNotDuplicate() = runBlocking {
-        every { context.checkPermission(Manifest.permission.READ_MEDIA_AUDIO, any(), any()) } returns PackageManager.PERMISSION_GRANTED
+        every { context.checkSelfPermission(Manifest.permission.READ_MEDIA_AUDIO) } returns PackageManager.PERMISSION_GRANTED
 
         val firstResult = manager.restoreDownloadsAfterReinstall()
         assertThat(firstResult).isTrue()
@@ -145,7 +145,7 @@ class AudioRestoreScanTest {
 
     @Test
     fun restoreDownloads_withoutPermission_leavesScannedFlagUnset() = runBlocking {
-        every { context.checkPermission(any(), any(), any()) } returns PackageManager.PERMISSION_DENIED
+        every { context.checkSelfPermission(any()) } returns PackageManager.PERMISSION_DENIED
 
         val result = manager.restoreDownloadsAfterReinstall()
         assertThat(result).isFalse()
