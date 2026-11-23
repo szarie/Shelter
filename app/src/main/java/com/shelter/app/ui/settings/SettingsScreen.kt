@@ -2172,9 +2172,24 @@ fun SettingsScreen(
                         icon = Icons.Filled.CloudDownload,
                         iconContainer = if (updateInfo.isUpdateAvailable) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
                         iconTint = if (updateInfo.isUpdateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSecondaryContainer,
-                        title = if (updateInfo.isUpdateAvailable) "Update Ready (${updateInfo.latestVersion})" else "Check for Updates",
+                        title = when (updateInfo.downloadStage) {
+                            com.shelter.app.data.update.UpdateDownloadStage.DOWNLOADING ->
+                                "Downloading ${updateInfo.downloadProgress}%"
+                            com.shelter.app.data.update.UpdateDownloadStage.DOWNLOADED ->
+                                "Install Update (${updateInfo.latestVersion})"
+                            com.shelter.app.data.update.UpdateDownloadStage.FAILED ->
+                                "Retry Update Download"
+                            com.shelter.app.data.update.UpdateDownloadStage.IDLE ->
+                                if (updateInfo.isUpdateAvailable) "Update Ready (${updateInfo.latestVersion})" else "Check for Updates"
+                        },
                         subtitle = when {
                             updateInfo.isChecking -> "Checking GitHub releases..."
+                            updateInfo.downloadStage == com.shelter.app.data.update.UpdateDownloadStage.DOWNLOADING ->
+                                "Downloading Shelter update..."
+                            updateInfo.downloadStage == com.shelter.app.data.update.UpdateDownloadStage.DOWNLOADED ->
+                                "Downloaded and ready to install"
+                            updateInfo.downloadStage == com.shelter.app.data.update.UpdateDownloadStage.FAILED ->
+                                updateInfo.message ?: "The update download failed"
                             updateInfo.isUpdateAvailable -> {
                                 val fileName = updateInfo.downloadFileName
                                 if (!fileName.isNullOrBlank()) "Tap to download $fileName" else "Tap to download new version"

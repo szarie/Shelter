@@ -157,6 +157,10 @@ class MainShellViewModel @Inject constructor(
     fun openUpdate(context: android.content.Context) {
         appUpdateManager.openUpdate(context)
     }
+
+    fun openUpdateInBrowser(context: android.content.Context) {
+        appUpdateManager.openUpdateInBrowser(context)
+    }
 }
 
 private enum class MainTab(val labelRes: Int) {
@@ -291,6 +295,8 @@ fun MainShell(
         ) {
             UpdatePromptCard(
                 version = updateInfo.latestVersion,
+                downloadStage = updateInfo.downloadStage,
+                downloadProgress = updateInfo.downloadProgress,
                 onUpdate = { mainShellViewModel.openUpdate(context) },
                 onDismiss = { mainShellViewModel.dismissUpdate(updateInfo.latestVersion) },
             )
@@ -326,6 +332,8 @@ fun MainShell(
 @Composable
 private fun UpdatePromptCard(
     version: String,
+    downloadStage: com.shelter.app.data.update.UpdateDownloadStage,
+    downloadProgress: Int,
     onUpdate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -365,10 +373,20 @@ private fun UpdatePromptCard(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .clip(RoundedCornerShape(14.dp))
-                    .clickable(onClick = onUpdate),
+                    .clickable(
+                        enabled = downloadStage != com.shelter.app.data.update.UpdateDownloadStage.DOWNLOADING,
+                        onClick = onUpdate,
+                    ),
             ) {
                 Text(
-                    text = androidx.compose.ui.res.stringResource(com.shelter.app.R.string.update),
+                    text = when (downloadStage) {
+                        com.shelter.app.data.update.UpdateDownloadStage.DOWNLOADING ->
+                            "Downloading $downloadProgress%"
+                        com.shelter.app.data.update.UpdateDownloadStage.DOWNLOADED -> "Install"
+                        com.shelter.app.data.update.UpdateDownloadStage.FAILED -> "Retry"
+                        com.shelter.app.data.update.UpdateDownloadStage.IDLE ->
+                            androidx.compose.ui.res.stringResource(com.shelter.app.R.string.update)
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimary,

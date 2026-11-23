@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +19,8 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import androidx.core.content.FileProvider
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -32,7 +35,16 @@ data class UpdateInfo(
     val downloadFileName: String? = null,
     val isDismissed: Boolean = false,
     val message: String? = null,
+    val downloadStage: UpdateDownloadStage = UpdateDownloadStage.IDLE,
+    val downloadProgress: Int = 0,
 )
+
+enum class UpdateDownloadStage {
+    IDLE,
+    DOWNLOADING,
+    DOWNLOADED,
+    FAILED,
+}
 
 data class ReleaseAsset(
     val name: String,
@@ -52,6 +64,9 @@ class AppUpdateManager @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val prefs = context.getSharedPreferences("shelter_updates", Context.MODE_PRIVATE)
+    private var downloadJob: Job? = null
+    private val apkFile: File
+        get() = File(context.cacheDir, "Shelter-update.apk")
 
     private val _updateInfo = MutableStateFlow(
         UpdateInfo(
@@ -133,7 +148,7 @@ class AppUpdateManager @Inject constructor(
                     bestAsset = probeTagAsset(tagName)
                 }
 
-                val downloadUrl = bestAsset?.downloadUrl ?: releaseUrl
+                val downloadUrl = bestAsset?.downloadUrl
                 val downloadFileName = bestAsset?.name
 
                 val currentVersion = getCurrentVersion()
@@ -141,6 +156,21 @@ class AppUpdateManager @Inject constructor(
                 val cleanTag = tagName.removePrefix("v").removePrefix("V")
                 val dismissedVersion = prefs.getString("dismissed_version", null)
                 val isDismissed = dismissedVersion == cleanTag
+                val downloadedVersion = prefs.getString("downloaded_version", null)
+                val hasDownloadedCurrent = downloadedVersion == cleanTag &&
+                    apkFile.exists() &&
+                    apkFile.length() > 0L
+                if (!hasDownloadedCurrent && downloadedVersion != null) {
+                    if (downloadedVersion != cleanTag) {
+                        apkFile.delete()
+                        prefs.edit().remove("downloaded_version").apply()
+                    }
+                }
+                val downloadStage = if (hasDownloadedCurrent) {
+                    UpdateDownloadStage.DOWNLOADED
+                } else {
+                    UpdateDownloadStage.IDLE
+                }
 
                 _updateInfo.update {
                     it.copy(
@@ -153,6 +183,8 @@ class AppUpdateManager @Inject constructor(
                         downloadUrl = downloadUrl,
                         downloadFileName = downloadFileName,
                         isDismissed = isDismissed,
+                        downloadStage = downloadStage,
+                        downloadProgress = if (hasDownloadedCurrent) 100 else 0,
                         message = if (!isSilent) {
                             if (hasNewer) "New version $cleanTag available!" else "You're on the latest version ($currentVersion)"
                         } else null,
@@ -285,7 +317,26 @@ class AppUpdateManager @Inject constructor(
     }
 
     fun openUpdate(context: Context) {
-        val targetUrl = _updateInfo.value.downloadUrl ?: _updateInfo.value.releaseUrl.ifBlank {
+        val directDownloadUrl = _updateInfo.value.downloadUrl
+        if (directDownloadUrl.isNullOrBlank()) {
+            openUpdateInBrowser(context)
+            return
+        }
+        when (_updateInfo.value.downloadStage) {
+            UpdateDownloadStage.DOWNLOADING -> return
+            UpdateDownloadStage.DOWNLOADED -> {
+                installUpdate(context)
+                return
+            }
+            UpdateDownloadStage.IDLE,
+            UpdateDownloadStage.FAILED -> {
+                startDownload()
+            }
+        }
+    }
+
+    fun openUpdateInBrowser(context: Context) {
+        val targetUrl = _updateInfo.value.releaseUrl.ifBlank {
             "https://github.com/szarie/Shelter/releases"
         }
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
@@ -294,6 +345,114 @@ class AppUpdateManager @Inject constructor(
         try {
             context.startActivity(intent)
         } catch (_: Exception) { }
+    }
+
+    fun startDownload() {
+        if (downloadJob?.isActive == true) return
+        val downloadUrl = _updateInfo.value.downloadUrl
+        if (downloadUrl.isNullOrBlank()) {
+            _updateInfo.update {
+                it.copy(downloadStage = UpdateDownloadStage.FAILED)
+            }
+            return
+        }
+
+        downloadJob = scope.launch {
+            _updateInfo.update {
+                it.copy(
+                    downloadStage = UpdateDownloadStage.DOWNLOADING,
+                    downloadProgress = 0,
+                    message = null,
+                )
+            }
+
+            try {
+                val response = okHttpClient.newCall(
+                    apiRequest(downloadUrl)
+                ).execute()
+                response.use {
+                    if (!it.isSuccessful) throw IllegalStateException("Download failed (${it.code})")
+                    val body = it.body ?: throw IllegalStateException("Empty update response")
+                    val contentLength = body.contentLength()
+                    apkFile.parentFile?.mkdirs()
+                    apkFile.outputStream().use { output ->
+                        body.byteStream().use { input ->
+                            val buffer = ByteArray(16 * 1024)
+                            var written = 0L
+                            var lastPublished = -1
+                            while (true) {
+                                val read = input.read(buffer)
+                                if (read == -1) break
+                                output.write(buffer, 0, read)
+                                written += read
+                                val progress = if (contentLength > 0) {
+                                    ((written * 100) / contentLength).toInt().coerceIn(0, 100)
+                                } else 0
+                                if (progress != lastPublished) {
+                                    lastPublished = progress
+                                    _updateInfo.update { state ->
+                                        state.copy(downloadProgress = progress)
+                                    }
+                                }
+                            }
+                            output.flush()
+                        }
+                    }
+                }
+
+                if (!apkFile.exists() || apkFile.length() == 0L) {
+                    throw IllegalStateException("Downloaded APK is empty")
+                }
+                prefs.edit()
+                    .putString("downloaded_version", _updateInfo.value.latestVersion)
+                    .apply()
+                _updateInfo.update {
+                    it.copy(
+                        downloadStage = UpdateDownloadStage.DOWNLOADED,
+                        downloadProgress = 100,
+                        message = "Update downloaded. Tap Install.",
+                    )
+                }
+            } catch (e: Exception) {
+                apkFile.delete()
+                prefs.edit().remove("downloaded_version").apply()
+                _updateInfo.update {
+                    it.copy(
+                        downloadStage = UpdateDownloadStage.FAILED,
+                        downloadProgress = 0,
+                        message = "Update download failed: ${e.message ?: "Network error"}",
+                    )
+                }
+            }
+        }
+    }
+
+    fun installUpdate(context: Context) {
+        if (!apkFile.exists() || apkFile.length() == 0L) {
+            startDownload()
+            return
+        }
+        val uri = try {
+            FileProvider.getUriForFile(context, "${context.packageName}.provider", apkFile)
+        } catch (_: Exception) {
+            null
+        } ?: return
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            _updateInfo.update {
+                it.copy(
+                    downloadStage = UpdateDownloadStage.DOWNLOADED,
+                    message = "Unable to open the installer.",
+                )
+            }
+        }
     }
 
     fun isNewerVersion(remote: String, local: String): Boolean {

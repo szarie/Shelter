@@ -118,6 +118,7 @@ class SettingsViewModel @Inject constructor(
 
     fun checkForUpdates() = appUpdateManager.checkForUpdate(isSilent = false)
     fun openUpdate(context: android.content.Context) = appUpdateManager.openUpdate(context)
+    fun openUpdateInBrowser(context: android.content.Context) = appUpdateManager.openUpdateInBrowser(context)
 
     val spotifyConnected: StateFlow<Boolean> = spotifyPreferences.isConnected
         .withSettingsFallback("Spotify connection", false)
