@@ -60,8 +60,8 @@ android {
         applicationId = "com.shelter.app"
         minSdk = (project.findProperty("minSdk") as? String)?.toIntOrNull() ?: 29
         targetSdk = 35
-        versionCode = 30
-        versionName = "5.0.0"
+        versionCode = 31
+        versionName = "5.0.1"
 
         val lastWaveLyricsToken = resolveSecret("SHELTER_LYRICS_TOKEN")
         val lastWaveLyricsUrl = resolveSecret("SHELTER_LYRICS_URL")
